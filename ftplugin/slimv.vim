@@ -30,10 +30,8 @@ endif
 if ( !exists( 'g:slimv_python_version' ) && has( 'python3' ) ) ||
 \  (  exists( 'g:slimv_python_version' ) && g:slimv_python_version == 3 )
     let s:py_cmd = 'python3 ' "note space
-    let s:pyfile_cmd = 'py3file '
 else
     let s:py_cmd = 'python '  "note space
-    let s:pyfile_cmd = 'pyfile '
 endif
 
 
@@ -501,11 +499,11 @@ endfunction
 function! SlimvSwankResponse()
     let s:swank_ok_result = ''
     let s:refresh_disabled = 1
-    silent execute s:py_cmd . 'swank_output(1)'
+    silent execute s:py_cmd . 'swank.swank_output(1)'
     let s:refresh_disabled = 0
     let s:swank_action = ''
     let s:swank_result = ''
-    silent execute s:py_cmd . 'swank_response("")'
+    silent execute s:py_cmd . 'swank.swank_response("")'
 
     if s:swank_action == ':describe-symbol' && s:swank_result != ''
         echo substitute(s:swank_result,'^\n*','','')
@@ -561,8 +559,8 @@ function! SlimvCommandGetResponse( name, cmd, timeout )
         let cmd_timeout = 3
     endif
     while s:swank_action == '' && localtime()-starttime < cmd_timeout
-        execute s:py_cmd . "swank_output( 0 )"
-        silent execute s:py_cmd . 'swank_response("' . a:name . '")'
+        execute s:py_cmd . "swank.swank_output( 0 )"
+        silent execute s:py_cmd . 'swank.swank_response("' . a:name . '")'
     endwhile
     let s:refresh_disabled = 0
     return s:swank_result
@@ -588,7 +586,7 @@ function! SlimvRefreshReplBuffer()
         let answer = input( s:input_prompt )
         unlet s:input_prompt
         echo ""
-        call SlimvCommand( s:py_cmd . 'swank_return("' . answer . '")' )
+        call SlimvCommand( s:py_cmd . 'swank.swank_return("' . answer . '")' )
     endif
 endfunction
 
@@ -1069,7 +1067,7 @@ function SlimvQuitInspect( force )
     silent! %d _
     call SlimvEndUpdate()
     if a:force
-        call SlimvCommand( s:py_cmd . 'swank_quit_inspector()' )
+        call SlimvCommand( s:py_cmd . 'swank.swank_quit_inspector()' )
     endif
     call SlimvRestoreFocus(1)
 endfunction
@@ -1326,7 +1324,7 @@ function! SlimvConnectSwank()
             return 0
         endif
         execute s:py_cmd . 'import vim'
-        execute s:pyfile_cmd . g:swank_path
+        execute s:py_cmd . 'import swank'
         let s:python_initialized = 1
     endif
 
@@ -1337,7 +1335,7 @@ function! SlimvConnectSwank()
         if g:swank_host == ''
             let g:swank_host = input( 'Swank server host name: ', 'localhost' )
         endif
-        execute s:py_cmd . 'swank_connect("' . g:swank_host . '", ' . g:swank_port . ', "result" )'
+        execute s:py_cmd . 'swank.swank_connect("' . g:swank_host . '", ' . g:swank_port . ', "result" )'
         if result != '' && ( g:swank_host == 'localhost' || g:swank_host == '127.0.0.1' )
             " SWANK server is not running, start server if possible
             let swank = SlimvSwankCommand()
@@ -1348,7 +1346,7 @@ function! SlimvConnectSwank()
                 let starttime = localtime()
                 while result != '' && localtime()-starttime < g:slimv_timeout
                     sleep 500m
-                    execute s:py_cmd . 'swank_connect("' . g:swank_host . '", ' . g:swank_port . ', "result" )'
+                    execute s:py_cmd . 'swank.swank_connect("' . g:swank_host . '", ' . g:swank_port . ', "result" )'
                 endwhile
                 redraw!
             endif
@@ -1375,14 +1373,14 @@ function! SlimvConnectSwank()
         if g:slimv_simple_compl == 0
             let contribs = contribs . ' swank-fuzzy'
         endif
-        execute s:py_cmd . "swank_require('(" . contribs . ")')"
+        execute s:py_cmd . "swank.swank_require('(" . contribs . ")')"
         call SlimvSwankResponse()
         if s:SinceVersion( '2011-12-04' )
-            execute s:py_cmd . "swank_require('swank-repl')"
+            execute s:py_cmd . "swank.swank_require('swank-repl')"
             call SlimvSwankResponse()
         endif
         if s:SinceVersion( '2008-12-23' )
-            call SlimvCommandGetResponse( ':create-repl', s:py_cmd . 'swank_create_repl()', g:slimv_timeout )
+            call SlimvCommandGetResponse( ':create-repl', s:py_cmd . 'swank.swank_create_repl()', g:slimv_timeout )
         endif
         let s:swank_connected = 1
         redraw
@@ -1437,14 +1435,14 @@ function! SlimvSend( args, echoing, output )
             endif
         endif
         if a:output
-            silent execute s:py_cmd . 'append_repl("s:swank_form", 1)'
+            silent execute s:py_cmd . 'swank.append_repl("s:swank_form", 1)'
         endif
         let s:swank_form = text
     elseif a:output
         " Open a new line for the output
-        silent execute s:py_cmd . " append_repl('\\n', 0)"
+        silent execute s:py_cmd . " swank.append_repl('\\n', 0)"
     endif
-    call SlimvCommand( s:py_cmd . 'swank_input("s:swank_form")' )
+    call SlimvCommand( s:py_cmd . 'swank.swank_input("s:swank_form")' )
     let s:swank_package = ''
     let s:swank_package_form = ''
     let s:refresh_disabled = 0
@@ -1869,7 +1867,7 @@ function! SlimvIndentUnsafe( lnum )
             let args_here = len( split( form ) ) - 1
             " Get swank indent info
             let s:indent = ''
-            silent execute s:py_cmd . 'get_indent_info("' . func . '")'
+            silent execute s:py_cmd . 'swank.get_indent_info("' . func . '")'
             if s:indent != '' && s:indent == args_here
                 " The next one is an &body argument, so indent by 2 spaces from the opening '('
                 return c + 1
@@ -1970,7 +1968,7 @@ function! SlimvSendCommand( close )
             endif
         endif
     else
-        silent execute s:py_cmd . " append_repl('Slimv error: previous EOF mark not found, re-enter last form:\\n', 0)"
+        silent execute s:py_cmd . " swank.append_repl('Slimv error: previous EOF mark not found, re-enter last form:\\n', 0)"
     endif
 endfunction
 
@@ -2229,14 +2227,14 @@ function! SlimvHandleEnterSldb()
             if search( '^Backtrace:', 'bnW' ) > 0
                 " Display item-th frame
                 call SlimvMakeFold()
-                silent execute s:py_cmd . 'swank_frame_locals("' . item . '")'
+                silent execute s:py_cmd . 'swank.swank_frame_locals("' . item . '")'
                 if SlimvGetFiletype() != 'scheme' && g:slimv_impl != 'clisp'
                     " Not implemented for CLISP or scheme
-                    silent execute s:py_cmd . 'swank_frame_source_loc("' . item . '")'
+                    silent execute s:py_cmd . 'swank.swank_frame_source_loc("' . item . '")'
                 endif
                 if SlimvGetFiletype() == 'lisp' && g:slimv_impl != 'clisp' && g:slimv_impl != 'allegro'
                     " Not implemented for CLISP or other lisp dialects
-                    silent execute s:py_cmd . 'swank_frame_call("' . item . '")'
+                    silent execute s:py_cmd . 'swank.swank_frame_call("' . item . '")'
                 endif
                 call SlimvRefreshReplBuffer()
                 return
@@ -2244,7 +2242,7 @@ function! SlimvHandleEnterSldb()
             if search( '^Restarts:', 'bnW' ) > 0
                 " Apply item-th restart
                 call SlimvQuitSldb()
-                silent execute s:py_cmd . 'swank_invoke_restart("' . s:sldb_level . '", "' . item . '")'
+                silent execute s:py_cmd . 'swank.swank_invoke_restart("' . s:sldb_level . '", "' . item . '")'
                 call SlimvRefreshReplBuffer()
                 return
             endif
@@ -2307,14 +2305,14 @@ function! SlimvHandleEnterInspect()
     if line[0] == '['
         if line =~ '^\[--more--\]$'
             " More data follows, fetch next part
-            call SlimvCommand( s:py_cmd . 'swank_inspector_range()' )
+            call SlimvCommand( s:py_cmd . 'swank.swank_inspector_range()' )
             call SlimvRefreshReplBuffer()
             return
         elseif line =~ '^\[--all---\]$'
             " More data follows, fetch all parts
             echon "\rFetching all entries, please wait..."
             let b:inspect_more = -1
-            call SlimvCommand( s:py_cmd . 'swank_inspector_range()' )
+            call SlimvCommand( s:py_cmd . 'swank.swank_inspector_range()' )
             call SlimvRefreshReplBuffer()
             let starttime = localtime()
             while b:inspect_more < 0 && localtime()-starttime < g:slimv_timeout
@@ -2325,7 +2323,7 @@ function! SlimvHandleEnterInspect()
             while b:inspect_more > 0 && localtime()-starttime < g:slimv_timeout
                 " There are more parts to fetch (1 entry is usually 4 parts)
                 echon "\rFetching all entries, please wait [" . (b:inspect_more / 4) . "]"
-                call SlimvCommand( s:py_cmd . 'swank_inspector_range()' )
+                call SlimvCommand( s:py_cmd . 'swank.swank_inspector_range()' )
                 call SlimvRefreshReplBuffer()
                 if getchar(1)
                     " User is impatient, stop fetching
@@ -2403,7 +2401,7 @@ endfunction
 
 " Handle interrupt (Ctrl-C) keypress in the REPL buffer
 function! SlimvInterrupt()
-    call SlimvCommand( s:py_cmd . 'swank_interrupt()' )
+    call SlimvCommand( s:py_cmd . 'swank.swank_interrupt()' )
     call SlimvRefreshReplBuffer()
 endfunction
 
@@ -2414,7 +2412,7 @@ function! SlimvDebugCommand( name, cmd )
             if bufname('%') != g:slimv_sldb_name
                 call SlimvOpenSldbBuffer()
             endif
-            call SlimvCommand( s:py_cmd . '' . a:cmd . '()' )
+            call SlimvCommand( s:py_cmd . 'swank.' . a:cmd . '()' )
             call SlimvRefreshReplBuffer()
             if s:sldb_level < 0
                 " Swank exited the debugger
@@ -2448,7 +2446,7 @@ endfunction
 function! SlimvDebugRestartFrame()
     let frame = s:DebugFrame()
     if frame != ''
-        call SlimvCommand( s:py_cmd . 'swank_restart_frame("' . frame . '")' )
+        call SlimvCommand( s:py_cmd . 'swank.swank_restart_frame("' . frame . '")' )
         call SlimvRefreshReplBuffer()
     endif
 endfunction
@@ -2456,7 +2454,7 @@ endfunction
 " List current Lisp threads
 function! SlimvListThreads()
     if SlimvConnectSwank()
-        call SlimvCommand( s:py_cmd . 'swank_list_threads()' )
+        call SlimvCommand( s:py_cmd . 'swank.swank_list_threads()' )
         call SlimvRefreshReplBuffer()
     endif
 endfunction
@@ -2472,7 +2470,7 @@ function! SlimvKillThread() range
                 let item = input( 'Thread to kill: ', item )
             endif
             if item != ''
-                call SlimvCommand( s:py_cmd . 'swank_kill_thread(' . item . ')' )
+                call SlimvCommand( s:py_cmd . 'swank.swank_kill_thread(' . item . ')' )
                 call SlimvRefreshReplBuffer()
             endif
             echomsg 'Thread ' . item . ' is killed.'
@@ -2480,7 +2478,7 @@ function! SlimvKillThread() range
             for line in getline(a:firstline, a:lastline)
                 let item = matchstr( line, '\d\+' )
                 if item != ''
-                    call SlimvCommand( s:py_cmd . 'swank_kill_thread(' . item . ')' )
+                    call SlimvCommand( s:py_cmd . 'swank.swank_kill_thread(' . item . ')' )
                 endif
             endfor
             call SlimvRefreshReplBuffer()
@@ -2496,7 +2494,7 @@ function! SlimvDebugThread()
         let item = matchstr( line, '\d\+' )
         let item = input( 'Thread to debug: ', item )
         if item != ''
-            call SlimvCommand( s:py_cmd . 'swank_debug_thread(' . item . ')' )
+            call SlimvCommand( s:py_cmd . 'swank.swank_debug_thread(' . item . ')' )
             call SlimvRefreshReplBuffer()
         endif
     endif
@@ -2564,7 +2562,7 @@ function! SlimvArglist( ... )
         if arg != ''
             " Ask function argument list from SWANK
             call SlimvFindPackage()
-            let msg = SlimvCommandGetResponse( ':operator-arglist', s:py_cmd . 'swank_op_arglist("' . arg . '")', 0 )
+            let msg = SlimvCommandGetResponse( ':operator-arglist', s:py_cmd . 'swank.swank_op_arglist("' . arg . '")', 0 )
             if msg != ''
                 " Print argument list in status line with newlines removed.
                 " Disable showmode until the next ESC to prevent
@@ -2592,7 +2590,7 @@ endfunction
 " Start and connect swank server
 function! SlimvConnectServer()
     if s:swank_connected
-        execute s:py_cmd . "swank_disconnect()"
+        execute s:py_cmd . "swank.swank_disconnect()"
         let s:swank_connected = 0
 	" Give swank server some time for disconnecting
         sleep 500m
@@ -2815,7 +2813,7 @@ function! SlimvInteractiveEval()
         " We are in the debugger, eval expression in the frame the cursor stands on
         let e = input( 'Eval in frame ' . frame . ': ' )
         if e != ''
-            let result = SlimvCommandGetResponse( ':eval-string-in-frame', s:py_cmd . 'swank_eval_in_frame("' . e . '", ' . frame . ')', 0 )
+            let result = SlimvCommandGetResponse( ':eval-string-in-frame', s:py_cmd . 'swank.swank_eval_in_frame("' . e . '", ' . frame . ')', 0 )
             if result != ''
                 redraw
                 echo result
@@ -2832,7 +2830,7 @@ endfunction
 " Undefine function
 function! SlimvUndefineFunction()
     if s:swank_connected
-        call SlimvCommand( s:py_cmd . 'swank_undefine_function("' . SlimvSelectSymbol() . '")' )
+        call SlimvCommand( s:py_cmd . 'swank.swank_undefine_function("' . SlimvSelectSymbol() . '")' )
         call SlimvRefreshReplBuffer()
     endif
 endfunction
@@ -2850,7 +2848,7 @@ function! SlimvMacroexpand()
             " If this is the REPL buffer then go to EOF
             call s:EndOfBuffer()
         endif
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_macroexpand("s:swank_form")' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_macroexpand("s:swank_form")' )
     endif
 endfunction
 
@@ -2865,7 +2863,7 @@ function! SlimvMacroexpandAll()
             " If this is the REPL buffer then go to EOF
             call s:EndOfBuffer()
         endif
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_macroexpand_all("s:swank_form")' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_macroexpand_all("s:swank_form")' )
     endif
 endfunction
 
@@ -2876,7 +2874,7 @@ function! SlimvBreakOnException()
         " swank-clojure is abandoned at protocol version 20100404, so it must be ritz-swank
         if SlimvConnectSwank()
             let s:break_on_exception = ! s:break_on_exception
-            call SlimvCommand( s:py_cmd . 'swank_break_on_exception(' . s:break_on_exception . ')' )
+            call SlimvCommand( s:py_cmd . 'swank.swank_break_on_exception(' . s:break_on_exception . ')' )
             call SlimvRefreshReplBuffer()
             echomsg 'Break On Exception ' . (s:break_on_exception ? 'enabled.' : 'disabled.')
         endif
@@ -2890,7 +2888,7 @@ function! SlimvBreak()
     if SlimvConnectSwank()
         let s = input( 'Set breakpoint: ', SlimvSelectSymbol() )
         if s != ''
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_set_break("' . s . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_set_break("' . s . '")' )
             redraw!
         endif
     endif
@@ -2905,7 +2903,7 @@ function! SlimvTrace()
     if SlimvConnectSwank()
         let s = input( '(Un)trace: ', SlimvSelectSymbol() )
         if s != ''
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_toggle_trace("' . s . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_toggle_trace("' . s . '")' )
             redraw!
         endif
     endif
@@ -2919,7 +2917,7 @@ function! SlimvUntrace()
     endif
     if SlimvConnectSwank()
         let s:refresh_disabled = 1
-        call SlimvCommand( s:py_cmd . 'swank_untrace_all()' )
+        call SlimvCommand( s:py_cmd . 'swank.swank_untrace_all()' )
         let s:refresh_disabled = 0
         call SlimvRefreshReplBuffer()
     endif
@@ -2931,7 +2929,7 @@ function! SlimvDisassemble()
     if SlimvConnectSwank()
         let s = input( 'Disassemble: ', symbol )
         if s != ''
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_disassemble("' . s . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_disassemble("' . s . '")' )
         endif
     endif
 endfunction
@@ -2964,14 +2962,14 @@ function! SlimvInspect()
         let s = input( 'Inspect in frame ' . frame . ' (evaluated): ', sym )
         if s != ''
             let s:inspect_path = [s]
-            call SlimvCommand( s:py_cmd . 'swank_inspect_in_frame("' . s . '", ' . frame . ')' )
+            call SlimvCommand( s:py_cmd . 'swank.swank_inspect_in_frame("' . s . '", ' . frame . ')' )
             call SlimvRefreshReplBuffer()
         endif
     else
         let s = input( 'Inspect: ', SlimvSelectSymbolExt() )
         if s != ''
             let s:inspect_path = [s]
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_inspect("' . s . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_inspect("' . s . '")' )
         endif
     endif
 endfunction
@@ -2981,7 +2979,7 @@ function! SlimvXrefBase( text, cmd )
     if SlimvConnectSwank()
         let s = input( a:text, SlimvSelectSymbol() )
         if s != ''
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_xref("' . s . '", "' . a:cmd . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_xref("' . s . '", "' . a:cmd . '")' )
         endif
     endif
 endfunction
@@ -3033,7 +3031,7 @@ function! SlimvProfile()
     if SlimvConnectSwank()
         let s = input( '(Un)profile: ', SlimvSelectSymbol() )
         if s != ''
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_toggle_profile("' . s . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_toggle_profile("' . s . '")' )
             redraw!
         endif
     endif
@@ -3045,7 +3043,7 @@ function! SlimvProfileSubstring()
         let s = input( 'Profile by matching substring: ', SlimvSelectSymbol() )
         if s != ''
             let p = input( 'Package (RET for all packages): ' )
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_profile_substring("' . s . '","' . p . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_profile_substring("' . s . '","' . p . '")' )
             redraw!
         endif
     endif
@@ -3054,28 +3052,28 @@ endfunction
 " Switch profiling completely off
 function! SlimvUnprofileAll()
     if SlimvConnectSwank()
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_unprofile_all()' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_unprofile_all()' )
     endif
 endfunction
 
 " Display list of profiled functions
 function! SlimvShowProfiled()
     if SlimvConnectSwank()
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_profiled_functions()' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_profiled_functions()' )
     endif
 endfunction
 
 " Report profiling results
 function! SlimvProfileReport()
     if SlimvConnectSwank()
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_profile_report()' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_profile_report()' )
     endif
 endfunction
 
 " Reset profiling counters
 function! SlimvProfileReset()
     if SlimvConnectSwank()
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_profile_reset()' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_profile_reset()' )
     endif
 endfunction
 
@@ -3090,7 +3088,7 @@ function! SlimvCompileDefun()
     endif
     if SlimvConnectSwank()
         let s:swank_form = SlimvGetSelection()
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_compile_string("s:swank_form")' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_compile_string("s:swank_form")' )
     endif
     call winrestview( oldpos )
 endfunction
@@ -3111,14 +3109,14 @@ function! SlimvCompileLoadFile()
     endif
     if SlimvConnectSwank()
         let s:compiled_file = ''
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_compile_file("' . filename . '")' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_compile_file("' . filename . '")' )
         let starttime = localtime()
         while s:compiled_file == '' && localtime()-starttime < g:slimv_timeout
             call SlimvSwankResponse()
         endwhile
         if s:compiled_file != ''
             let s:compiled_file = substitute( s:compiled_file, '\\', '/', 'g' )
-            call SlimvCommandUsePackage( s:py_cmd . 'swank_load_file("' . s:compiled_file . '")' )
+            call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_load_file("' . s:compiled_file . '")' )
             let s:compiled_file = ''
         endif
     endif
@@ -3139,7 +3137,7 @@ function! SlimvCompileFile()
         endif
     endif
     if SlimvConnectSwank()
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_compile_file("' . filename . '")' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_compile_file("' . filename . '")' )
     endif
 endfunction
 
@@ -3163,7 +3161,7 @@ function! SlimvCompileRegion() range
     let region = join( lines, "\n" )
     if SlimvConnectSwank()
         let s:swank_form = region
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_compile_string("s:swank_form")' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_compile_string("s:swank_form")' )
     endif
 endfunction
 
@@ -3177,7 +3175,7 @@ function! SlimvDescribeSymbol()
             call SlimvError( "No symbol under cursor." )
             return
         endif
-        call SlimvCommandUsePackage( s:py_cmd . 'swank_describe_symbol("' . symbol . '")' )
+        call SlimvCommandUsePackage( s:py_cmd . 'swank.swank_describe_symbol("' . symbol . '")' )
     endif
 endfunction
 
@@ -3193,13 +3191,13 @@ function! SlimvDescribe(arg)
         return ''
     endif
     call SlimvFindPackage()
-    let arglist = SlimvCommandGetResponse( ':operator-arglist', s:py_cmd . 'swank_op_arglist("' . arg . '")', 0 )
+    let arglist = SlimvCommandGetResponse( ':operator-arglist', s:py_cmd . 'swank.swank_op_arglist("' . arg . '")', 0 )
     if arglist == ''
         " Not able to fetch arglist, assuming function is not defined
         " Skip calling describe, otherwise SWANK goes into the debugger
         return ''
     endif
-    let msg = SlimvCommandGetResponse( ':describe-function', s:py_cmd . 'swank_describe_function("' . arg . '")', 0 )
+    let msg = SlimvCommandGetResponse( ':describe-function', s:py_cmd . 'swank.swank_describe_function("' . arg . '")', 0 )
     if msg == ''
         " No describe info, display arglist
         if match( arglist, arg ) != 1
@@ -3355,9 +3353,9 @@ function! SlimvComplete( base )
 
         call SlimvFindPackage()
         if g:slimv_simple_compl
-            let msg = SlimvCommandGetResponse( ':simple-completions', s:py_cmd . 'swank_completions("' . a:base . '")', 0 )
+            let msg = SlimvCommandGetResponse( ':simple-completions', s:py_cmd . 'swank.swank_completions("' . a:base . '")', 0 )
         else
-            let msg = SlimvCommandGetResponse( ':fuzzy-completions', s:py_cmd . 'swank_fuzzy_completions("' . a:base . '")', 0 )
+            let msg = SlimvCommandGetResponse( ':fuzzy-completions', s:py_cmd . 'swank.swank_fuzzy_completions("' . a:base . '")', 0 )
         endif
 
         " Restore window and buffer, because it is not allowed to change buffer here
@@ -3436,7 +3434,7 @@ function! SlimvFindDefinitionsForEmacs( symbol )
     if g:slimv_tags_file == ''
         let msg = ''
     else
-        let msg = SlimvCommandGetResponse( ':find-definitions-for-emacs', s:py_cmd . 'swank_find_definitions_for_emacs("' . a:symbol . '")', 0 )
+        let msg = SlimvCommandGetResponse( ':find-definitions-for-emacs', s:py_cmd . 'swank.swank_find_definitions_for_emacs("' . a:symbol . '")', 0 )
     endif
     try
         if msg != ''
@@ -3478,7 +3476,7 @@ function! SlimvSetPackage()
         let pkg = input( 'Package: ', s:swank_package )
         if pkg != ''
             let s:refresh_disabled = 1
-            call SlimvCommand( s:py_cmd . 'swank_set_package("' . pkg . '")' )
+            call SlimvCommand( s:py_cmd . 'swank.swank_set_package("' . pkg . '")' )
             let s:refresh_disabled = 0
             call SlimvRefreshReplBuffer()
         endif
@@ -3489,7 +3487,7 @@ endfunction
 " and quit REPL buffer
 function! SlimvQuitRepl()
     if s:swank_connected
-        call SlimvCommand( s:py_cmd . 'swank_quit_lisp()' )
+        call SlimvCommand( s:py_cmd . 'swank.swank_quit_lisp()' )
         let s:swank_connected = 0
         let buf = bufnr( '^' . g:slimv_repl_name . '$' )
         if buf != -1

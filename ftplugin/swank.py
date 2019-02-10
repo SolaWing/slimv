@@ -15,6 +15,7 @@
 
 from __future__ import print_function
 
+import vim
 import socket
 import time
 import select
